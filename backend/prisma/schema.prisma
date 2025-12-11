@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+  services  Service[]
+  professionals Professional[]
+  appointments Appointment[]
+  schedules    ProfessionalSchedule[]
+  paymentProofs PaymentProof[]
+  config        TenantConfig?
+  reviews        Review[]
+  notifications  Notification[]
+  recurrenceRules RecurrenceRule[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(USER)
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  reviews   Review[]
+  notifications Notification[]
+}
+
+model Service {
+  id        String   @id @default(uuid())
+  name      String
+  price     Decimal
+  duration  Int      // in minutes
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  appointments Appointment[]
+  reviews      Review[]
+}
+
+model Professional {
+  id        String        @id @default(uuid())
+  name      String
+  tenantId  String
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  appointments Appointment[]
+  schedules ProfessionalSchedule[]
+  reviews   Review[]
+  profileImageUrl String?
+  averageRating Float? @default(0)
+  commissionRate Decimal      @default(0.0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model Appointment {
+  id             String            @id @default(uuid())
+  date           DateTime
+  status         AppointmentStatus @default(SCHEDULED)
+  tenantId       String
+  tenant         Tenant            @relation(fields: [tenantId], references: [id])
+  serviceId      String
+  service        Service           @relation(fields: [serviceId], references: [id])
+  professionalId String?
+  professional   Professional?     @relation(fields: [professionalId], references: [id])
+  userId         String?           // Client
+  paymentStatus  PaymentStatus     @default(PENDING_PROOF_UPLOAD)
+  paymentProof   PaymentProof?
+  review         Review?
+  recurrenceRuleId String?
+  recurrenceRule RecurrenceRule? @relation(fields: [recurrenceRuleId], references: [id])
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([tenantId, date])
+  @@index([professionalId, date])
+  @@index([userId])
+  @@index([recurrenceRuleId])
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING_PROOF_UPLOAD
+  PENDING_APPROVAL
+  PAID
+  REJECTED
+}
+
+model PaymentProof {
+  id            String      @id @default(uuid())
+  url           String
+  uploadedAt    DateTime    @default(now())
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  tenantId      String
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+}
+
+model Review {
+  id             String       @id @default(uuid())
+  rating         Int
+  comment        String?
+  appointmentId  String       @unique
+  appointment    Appointment  @relation(fields: [appointmentId], references: [id])
+  serviceId      String
+  service        Service      @relation(fields: [serviceId], references: [id])
+  professionalId String
+  professional   Professional @relation(fields: [professionalId], references: [id])
+  userId         String?
+  user           User?        @relation(fields: [userId], references: [id])
+  tenantId       String
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@index([professionalId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  message   String
+  type      String   // 'REMINDER', 'SYSTEM', etc.
+  isRead    Boolean  @default(false)
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+model RecurrenceRule {
+  id            String        @id @default(uuid())
+  frequency     String        // 'WEEKLY', 'BIWEEKLY', 'MONTHLY'
+  interval      Int           @default(1)
+  count         Int?
+  endDate       DateTime?
+  dayOfWeek     Int?
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  appointments  Appointment[]
+  createdAt     DateTime      @default(now())
+}
+
+model TenantConfig {
+  id         String  @id @default(uuid())
+  tenantId   String  @unique
+  tenant     Tenant  @relation(fields: [tenantId], references: [id])
+  publicName String?
+  themeColor String? @default("#3B82F6")
+  logoUrl    String?
+  pixKey     String?
+  
+  // AI Agent Customization
+  agentName         String?  @default("Assistente FlowMaster")
+  agentGreeting     String?  @default("Olá! Sou o assistente virtual. Como posso ajudar?")
+  agentPersonality  String?  // Full system instruction override
+  agentTone         String?  @default("friendly") // friendly, formal, casual
+}
+
+model ProfessionalSchedule {
+  id             String       @id @default(uuid())
+  professionalId String
+  professional   Professional @relation(fields: [professionalId], references: [id])
+  dayOfWeek      Int          // 0=Domingo, 1=Segunda, ..., 6=Sábado
+  startTime      String       // "09:00"
+  endTime        String       // "18:00"
+  tenantId       String
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+
+  @@unique([professionalId, dayOfWeek])
+}
