@@ -1,6 +1,6 @@
 # 💈 FlowMaster
 
-> Sistema de gerenciamento de fluxos de trabalho multi-tenant para barbearias, construído com Node.js, TypeScript, Prisma e PostgreSQL.
+> Sistema de gerenciamento de fluxos de trabalho multi-tenant para a área de esttética, construído com Node.js, TypeScript, Prisma e PostgreSQL.
 
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
